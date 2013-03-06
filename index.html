@@ -1,109 +1,169 @@
 <html>
 <head>
-	<title></title>
+	<title>Conway's Game of Life</title>
 </head>
 <body>
-
 <script>
 
-function makeGrid(xs, ys) {
-	grid = [];
-	for (var y = 0; y < ys; y++) {
-		grid[y] = [];
-		for (var x = 0; x < xs; x++) {
-			grid[y][x] = 0; 
-		}
-	}
-
-	return grid; 
+function rand() {
+	return Math.floor(Math.random() * 1.5)
 }
 
-function randomlySeedGrid(grid) {
-	for (var y = 0; y < grid.length; y++) {
-		for (var x = 0; x < grid[y].length; x++) {
-			// Get a random binary number. 1.1 multiplier will return more
-			// zeros than ones.
-			grid[y][x] = Math.floor(Math.random() * 1.1);
-		}
-	}
+var game = {
+	cellSize: 5,
+	gridSize: {x: 150, y: 150},
+	speed: 100,
 
-	return grid;
-}
+	init: function () {
+		this.grid = this.makeGrid(this.gridSize.x, this.gridSize.y, rand);
+		this.start();
+	},
 
-function drawGrid(grid) {
-	var cellSize = 5;
-	var currentCanvas = document.getElementsByTagName('canvas');
+	start: function () {
+		this.interval = setInterval(this.step.bind(this), this.speed);
+	},
 
-	if (currentCanvas.length) {
-		canvas = currentCanvas[0];
-	} else {
-		// Create a new canvas.
-		var gridWidth = grid[0].length * cellSize;
-		var gridHeight = grid.length * cellSize;
-		var canvas = document.createElement('canvas');
-		canvas.height = gridHeight;
-		canvas.width = gridWidth;
-		canvas.style.border = '1px solid black'
-		document.body.appendChild(canvas);
-	}
+	stop: function () {
+		clearInterval(this.interval);
+	},
 
-	var context = canvas.getContext('2d');
+	step: function () {
+		this.grid = this.advance(this.grid);
+		this.draw(this.grid);
+	},
 
-	context.clearRect(0, 0, canvas.height, canvas.width);
-	
-	for (var y = 0; y < grid.length; y++) {
-		for (var x = 0; x < grid[y].length; x++) {
-			if (grid[y][x] === 1) {
-				var top = x == 0 ? x : x * cellSize;
-				var left = y == 0 ? y : y * cellSize;
-				context.fillRect(top, left, cellSize, cellSize);
+	makeGrid: function (xs, ys, value) {
+		value = value || 0;
+		func = typeof value === 'function' ? value : null;
+		grid = [];
+		for (var y = 0; y < ys; y++) {
+			grid[y] = [];
+			for (var x = 0; x < xs; x++) {
+				grid[y][x] = func === null ? value : func(grid, x, y); 
 			}
 		}
-	}
-	return grid;
-}
+		return grid; 
+	},
 
-function countNeighbors(grid, x, y) {
-		var n = grid[y - 1] !== undefined ? grid[y - 1][x] : 0;
-		var s = grid[y + 1] !== undefined ? grid[y + 1][x] : 0;
-		var e = grid[y] !== undefined ? grid[y][x + 1] : 0;
-		var w = grid[y] !== undefined ? grid[y][x - 1] : 0;
-		var nw = grid[y - 1] !== undefined ? grid[y - 1][x - 1] : 0;
-		var ne = grid[y - 1] !== undefined ? grid[y - 1][x + 1] : 0;
-		var sw = grid[y + 1] !== undefined ? grid[y + 1][x - 1] : 0;
-		var se = grid[y + 1] !== undefined ? grid[y + 1][x + 1] : 0;
+	advance: function (grid) {
+		var next = [];
+		for (var y = 0; y < grid.length; ++y) {
+			next[y] = []
+			for (var x = 0; x < grid[y].length; ++x) {
+				// count neighbors.
+				var count = this.countNeighbors(grid, x, y);
+				// apply rules.
+				if (count === 3) {
+					next[y][x] = 1;
+				} else if (count > 3 || count < 2) {
+					next[y][x] = 0;
+				} else {
+					next[y][x] = grid[y][x]
+				}
+			}
+		}
+		return next;
+	},
+	printGrid: function (grid) {
+		grid = grid || this.grid
+		str = ''
+		for (var y = 0; y < grid.length; y++) {
+			for (var x = 0; x < grid[0].length; x++) {
+				str += grid[y][x] + ' ';
+			}
+			str += '\n';
+		}
+		console.log(str)
+	},
+	getCell: function (x, y) {
+		grid = this.grid;
+
+		if (grid[y] === undefined) {
+			return 0;
+		} 
+
+		else if (grid[y][x] === undefined) {
+			return 0;
+		}
+
+		else {
+			return grid[y][x];
+		}
+	},
+	countNeighbors: function (grid, x, y) {
+		var n = this.getCell(x, y - 1);
+		var s = this.getCell(x, y + 1);
+		var e = this.getCell(x + 1, y);
+		var w = this.getCell(x - 1, y);
+		var nw = this.getCell(x - 1, y - 1)
+		var ne = this.getCell(x + 1, y - 1)
+		var sw = this.getCell(x - 1, y + 1)
+		var se = this.getCell(x + 1, y + 1)
 		var neighbors = [n, s, e, w, ne, nw, se, sw];
 		var count = neighbors.reduce(function(a, b) { return a + b; });
 		return count;
-}
+	},
 
-function advanceGrid(grid) {
-	for (var y = 0; y < grid.length; ++y) {
-		for (var x = 0; x < grid[y].length; ++x) {
-			// count neighbors.
-			var count = countNeighbors(grid, x, y);
-			// apply rules.
-			if (count === 3) {
-				grid[y][x] = 1;
-			} else if (count > 3 || count < 2) {
-				grid[y][x] = 0;
+	getCanvas: function () {
+		// Get the current canvas.
+		var currentCanvas = document.getElementsByTagName('canvas');
+		if (currentCanvas.length) {
+			return currentCanvas[0];
+		}
+		// Create a new canvas.
+		var canvas = document.createElement('canvas');
+		canvas.height = this.gridSize.y * this.cellSize;
+		canvas.width = this.gridSize.x * this.cellSize;
+		canvas.addEventListener("mousedown", this.getPosition, false);
+		document.body.appendChild(canvas);
+		return canvas;
+	},
+
+	draw: function (grid, cellSize) {
+		var cellSize = cellSize || this.cellSize || 5;
+		var canvas = this.getCanvas(grid);
+		var context = canvas.getContext('2d');
+		
+		context.clearRect(0, 0, canvas.height, canvas.width);
+		
+		for (var y = 0; y < grid.length; y++) {
+			for (var x = 0; x < grid[y].length; x++) {
+				if (grid[y][x] === 1) {
+					var top = x == 0 ? x : x * cellSize;
+					var left = y == 0 ? y : y * cellSize;
+					context.fillRect(top, left, cellSize, cellSize);
+				}
 			}
 		}
-	}
-	return grid;
+		return grid;
+	},
+
+	getPosition: function (event) {
+		var x = event.x;
+		var y = event.y;
+		var canvas = document.getElementsByTagName("canvas")[0];
+		x -= canvas.offsetLeft;
+		y -= canvas.offsetTop;
+		coords = this.getCellAt(grid, x, y)
+		this.toggleCell(grid, coords.x, coords.y)
+	},
+
+	getCellAt: function (grid, x, y) {
+		// Pass in mouse coordinates and return grid coordinates.
+		gridx = Math.floor(x / this.cellSize);
+		gridy = Math.floor(y / this.cellSize );
+		return {x: gridx, y: gridy}
+	},
+
+	toggleCell: function (grid, x, y) {
+		grid[y][x] = grid[y][x] ? 0 : 1
+		this.draw(grid)
+	},
 }
 
-function main() {
-	grid = makeGrid(150, 150);
-	randomlySeedGrid(grid);
-	loop = function () { 
-		drawGrid(grid);
-		advanceGrid(grid);
-	}
-	setInterval(loop, 100);
-}
+game.init();
 
-main();
+
 
 </script>
 </body>
