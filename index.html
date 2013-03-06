@@ -114,7 +114,7 @@ var game = {
 		var canvas = document.createElement('canvas');
 		canvas.height = this.gridSize.y * this.cellSize;
 		canvas.width = this.gridSize.x * this.cellSize;
-		canvas.addEventListener("mousedown", this.getPosition, false);
+		canvas.addEventListener("mousedown", this.getPosition.bind(this), false);
 		document.body.appendChild(canvas);
 		return canvas;
 	},
